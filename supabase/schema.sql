@@ -36,9 +36,6 @@ create table if not exists public.staff (
   created_at timestamptz not null default now()
 );
 
-create unique index if not exists staff_last_name_unique_ci
-  on public.staff (lower(last_name));
-
 create table if not exists public.swings (
   id uuid primary key default gen_random_uuid(),
   staff_id uuid not null references public.staff (id) on delete cascade,

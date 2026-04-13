@@ -5,6 +5,7 @@ import { getServiceSupabase } from "@/lib/supabase/server";
 import { swingItemsToColumns } from "@/lib/swings";
 import type {
   SearchType,
+  StaffAuthRecord,
   StaffRecord,
   StaffWithCurrentSwings,
   SwingItem,
@@ -35,48 +36,54 @@ export async function getStaffByLastName(lastName: string) {
     .from("staff")
     .select("id, first_name, last_name, email, campus, area, pin_hash, created_at")
     .ilike("last_name", lastName.trim())
-    .maybeSingle();
+    .order("created_at", { ascending: true });
 
   if (error) {
     throw new AppError("Something went wrong. Please try again or contact Pastor Josh.", 500);
   }
 
-  return data;
+  return (data ?? []) as StaffAuthRecord[];
 }
 
 export async function verifyStaff(lastName: string, pin: string) {
-  const staff = await getStaffByLastName(lastName);
+  const staffMatches = await getStaffByLastName(lastName);
 
-  if (!staff) {
+  if (staffMatches.length === 0) {
     throw new AppError(
       "We couldn't find that combination. Try again or contact Pastor Josh.",
       401,
     );
   }
 
-  const matches = await bcrypt.compare(pin, staff.pin_hash);
+  const pinMatches: StaffAuthRecord[] = [];
 
-  if (!matches) {
+  for (const staff of staffMatches) {
+    const matches = await bcrypt.compare(pin, staff.pin_hash);
+
+    if (matches) {
+      pinMatches.push(staff);
+    }
+  }
+
+  if (pinMatches.length === 0) {
     throw new AppError(
       "We couldn't find that combination. Try again or contact Pastor Josh.",
       401,
     );
   }
 
-  return staff;
-}
-
-export async function createStaffAndSwings(input: CreateStaffInput) {
-  const supabase = getServiceSupabase();
-  const existing = await getStaffByLastName(input.lastName);
-
-  if (existing) {
+  if (pinMatches.length > 1) {
     throw new AppError(
-      "A staff member with that last name already exists. Please contact Pastor Josh to resolve.",
+      "We found more than one staff member with that last name and PIN. Please contact Pastor Josh to resolve.",
       409,
     );
   }
 
+  return pinMatches[0];
+}
+
+export async function createStaffAndSwings(input: CreateStaffInput) {
+  const supabase = getServiceSupabase();
   const pinHash = await bcrypt.hash(input.pin, 10);
 
   const { data: staff, error: staffError } = await supabase

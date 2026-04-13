@@ -19,6 +19,10 @@ export type StaffRecord = {
   created_at: string;
 };
 
+export type StaffAuthRecord = StaffRecord & {
+  pin_hash: string;
+};
+
 export type SwingRecord = {
   id: string;
   staff_id: string;

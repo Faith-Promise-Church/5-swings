@@ -73,21 +73,16 @@ async function main() {
   });
   console.log("PASS createStaffAndSwings");
 
-  await expectAppError(
-    "duplicate last name",
-    () =>
-      createStaffAndSwings({
-        firstName: "Codex",
-        lastName,
-        email: `duplicate+${timestamp}@example.com`,
-        campus: "Pellissippi",
-        area: "Admin",
-        pin: "1234",
-        swings: makeSwings("Duplicate"),
-      }),
-    409,
-    "already exists",
-  );
+  const duplicateLastName = await createStaffAndSwings({
+    firstName: "Second",
+    lastName,
+    email: `duplicate+${timestamp}@example.com`,
+    campus: "Blount",
+    area: "Kids",
+    pin: "5678",
+    swings: makeSwings("Duplicate"),
+  });
+  console.log("PASS duplicate last name create");
 
   await expectAppError(
     "wrong pin verify",
@@ -99,6 +94,13 @@ async function main() {
   const verified = await verifyStaff(lastName, "1234");
   assert(verified.id === created.staff.id, "verifyStaff: returned wrong staff id");
   console.log("PASS verifyStaff");
+
+  const duplicateVerified = await verifyStaff(lastName, "5678");
+  assert(
+    duplicateVerified.id === duplicateLastName.staff.id,
+    "verifyStaff with duplicate last name: returned wrong staff id",
+  );
+  console.log("PASS verifyStaff duplicate last name");
 
   const fetched = await getStaffWithCurrentSwings(created.staff.id);
   assert(fetched.swings.swing_1 === "Created Swing 1", "getStaffWithCurrentSwings: wrong initial data");
